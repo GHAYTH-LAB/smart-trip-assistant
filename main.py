@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 import os
 from pydantic import BaseModel,Field
 from typing import List
+from datetime import datetime,timedelta
 load_dotenv()
 GET_TOURIST_PLACES_API_KEY=os.getenv("GET_PLACES_API_KEY")
 @tool("attractions_finder",description="Find tourist attractions in a given city. Takes a city name and returns a list of tourist attraction names (e.g. landmarks, monuments, points of interest) located in or near that city, using geocoding to locate the city and then searching for nearby attractions",return_direct=False)
-def get_places(city:str)->str:
+def get_places(city:str)->List:
     key=GET_TOURIST_PLACES_API_KEY
     url="https://api.geoapify.com/v1/geocode/search"
     partial_params={
@@ -37,4 +38,54 @@ def get_places(city:str)->str:
              if name:
                  attractions.append(name)
     return attractions
+@tool("get_flights",description="""Find the best round-trip flight between two cities via Google Flights (SerpApi).
+
+    Args:
+        departure_city: City to fly from (e.g. "Paris").
+        arrival_city: City to fly to (e.g. "Tunis").
+        delay_before_flight: Days from today until the outbound flight.
+        trip_period_to_stay: Days to stay before the return flight.
+
+    Returns:
+        A summary of the best flight found: airports, times, duration,
+        airline, aircraft, class, and flight number.""",return_direct=False)
+def fetch_flights(departure_city:str,arrival_city:str,delay_before_flight:int,trip_period_to_stay:int)->str:
+    URL="https://serpapi.com/search?engine=google_flights_autocomplete"
+    params={
+        "q":departure_city
+        ,"api_key":os.getenv("GET_FLIGHTS_API_KEY")
+    }
+    response=requests.get(url=URL
+                          ,params=params)
+    Airports_data=response.json()
+    departure_Airport_id=Airports_data["suggestions"][0]["airports"][0]["id"]
+    departure_Airport_name=Airports_data["suggestions"][0]["airports"][0]["name"]
+    URL="https://serpapi.com/search?engine=google_flights_autocomplete"
+    params={
+            "q":arrival_city
+            ,"api_key":os.getenv("GET_FLIGHTS_API_KEY")
+        }
+    response=requests.get(url=URL
+                            ,params=params)
+    Airports_data=response.json()
+    arrival_city_Airport_id=Airports_data["suggestions"][0]["airports"][0]["id"]
+    arrival_city_Airport_name=Airports_data["suggestions"][0]["airports"][0]["name"]
+    URL="https://serpapi.com/search?engine=google_flights"
+    outbound_date_date_not_formatted=datetime.now()+timedelta(days=delay_before_flight)
+    outbound_date_formatted = outbound_date_date_not_formatted.strftime("%Y-%m-%d")
+    departure_day_not_formatted=datetime.now()+timedelta(days=trip_period_to_stay+delay_before_flight)
+    departure_day_formatted = departure_day_not_formatted.strftime("%Y-%m-%d")    
+    params={
+        "departure_id":departure_Airport_id
+        ,"arrival_id":arrival_city_Airport_id
+        ,"outbound_date": outbound_date_formatted
+        ,"return_date":departure_day_formatted
+        ,"api_key":os.getenv("GET_FLIGHTS_API_KEY")
+    }
+    response=requests.get(url=URL
+                          ,params=params)
+    data=response.json()
+    return f"""Best flight available regarding your scheldue is from {data["best_flights"][0]["flights"][0]["departure_airport"]["name"]} to {data["best_flights"][0]["flights"][0]["arrival_airport"]["name"]} , The dparture Time is on {data["best_flights"][0]["flights"][0]["departure_airport"]["time"]} and the Arrival is on
+     {data["best_flights"][0]["flights"][0]["arrival_airport"]["time"]} The duration will be approximatively {data["best_flights"][0]["flights"][0]["duration"]} minute,The Airplane is {data["best_flights"][0]["flights"][0]["airplane"]} and the airline is {data["best_flights"][0]["flights"][0]["airline"]} , The Travel class is {data["best_flights"][0]["flights"][0]["travel_class"]} and the flight_number is {data["best_flights"][0]["flights"][0]["flight_number"]}
+     """
 
