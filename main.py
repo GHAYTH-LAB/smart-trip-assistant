@@ -1,7 +1,9 @@
 import requests
 from langchain.tools import tool
 from langchain.agents import create_agent
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv 
 import os
 from pydantic import BaseModel,Field
@@ -88,7 +90,7 @@ def fetch_flights(departure_city:str,arrival_city:str,delay_before_flight:int,tr
     return f"""Best flight available regarding your scheldue is from {data["best_flights"][0]["flights"][0]["departure_airport"]["name"]} to {data["best_flights"][0]["flights"][0]["arrival_airport"]["name"]} , The dparture Time is on {data["best_flights"][0]["flights"][0]["departure_airport"]["time"]} and the Arrival is on
      {data["best_flights"][0]["flights"][0]["arrival_airport"]["time"]} The duration will be approximatively {data["best_flights"][0]["flights"][0]["duration"]} minute,The Airplane is {data["best_flights"][0]["flights"][0]["airplane"]} and the airline is {data["best_flights"][0]["flights"][0]["airline"]} , The Travel class is {data["best_flights"][0]["flights"][0]["travel_class"]} and the flight_number is {data["best_flights"][0]["flights"][0]["flight_number"]}
      """
-@tool("get_hotels",description="find hotles in a specificated place",return_direct=False)
+@tool("get_hotels",description="find hotles in a specificated place also their ratings and their prices",return_direct=False)
 def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str:
     API_URL="https://serpapi.com/search?engine=google_hotels"
     day_of_the_flight_formatted = (datetime.now() + timedelta(days=delay_before_flight)).strftime("%Y-%m-%d")
@@ -115,3 +117,72 @@ def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str
         cancellation_note = "includes free cancellation" if free_cancellation else "does not include free cancellation"
         results.append(f"{name} — rated {rating}, {price}/night, {cancellation_note}")
     return "Here are some hotel options:\n" + "\n".join(f"- {r}" for r in results)
+@tool("visa_requirements",description="get visa requirements for the destination country",return_direct=False)
+def get_visa_requirements(departure_country:str,destination_country:str)->str:
+    URL=f"https://restcountries.com/v3.1/name/{destination_country}?fields=name,cca2"
+    response=requests.get(url=URL)
+    data=response.json()
+    destination_code=data[0]["cca2"]
+    URL=f"https://restcountries.com/v3.1/name/{departure_country}?fields=name,cca2"
+    response=requests.get(url=URL)
+    data=response.json()
+    departure_code=data[0]["cca2"]
+    URL=f"https://rough-sun-2523.fly.dev/visa/{departure_code}/{destination_code}"
+    data=requests.get(url=URL).json()
+    if data["category"]["code"]=="VF":
+        return f"Visa is not required from {departure_country} to {destination_country}"
+    else:
+        return f"Visa is required you must appply for it and its duration is {data["dur"]}"
+class DayPlan(BaseModel):
+    day_number:int=Field(description="Day of the trip, starting from 1")    
+    activities:List[str]=Field(description="List of activities or attractions planned for this day")
+class TripItinerary(BaseModel):
+    departure_city:str=Field(description="city the traveler is parting from(departure city)")
+    destination_city: str = Field(description="City the traveler is visiting")
+    flight_info: str = Field(description="Summary of the best flight found: airports, times, duration, airline, aircraft, class, and flight number")
+    hotel_infos:List[str]=Field(description="Summary of the best flight found: airports, times, duration, airline, aircraft, class, and flight number")
+    visa_info: str = Field(description="Visa requirement details: whether a visa is needed and the allowed stay duration")
+
+    days: List[DayPlan] = Field(description="Day-by-day plan covering the full length of the trip, distributing attractions across days without repeats")
+LLM=ChatOllama(
+    model="llama3.1"
+    ,temperature=0
+)
+print("Hello Ghayth! JourneyGo is here To assist Today,I am your guide for programming Good Trips ,Just Give me where You wanna go and from where also after how many days you are willing to flight and how much are you willing to stay and I WILL PROGRAMM EVRYTHING FOR YOU!")
+agent=create_agent(
+    model=LLM
+    ,tools=[get_visa_requirements,hotels_finder,fetch_flights,get_places]
+    ,response_format=TripItinerary
+    ,system_prompt="""You are JourneyGo, a trip-planning assistant. Given a departure city, destination city, how many days until departure, and trip length, you must build a complete trip plan using the tools available to you.
+Tools available:
+- get_visa_requirements(departure_country, destination_country): checks whether a visa is needed between two countries and the allowed stay duration. Always call this FIRST, using the countries (not cities) that correspond to the departure_city and destination_city.
+- fetch_flights(departure_city, arrival_city, delay_before_flight, trip_period_to_stay): finds the best round-trip flight.
+- hotels_finder(city, delay_before_flight, trip_period_to_stay): finds hotel options at the destination for the trip dates.
+- get_places(city): finds tourist attractions in the destination city.
+Rules:
+1. Always check visa requirements before anything else. If a visa is required, still continue building the rest of the plan, but make sure the visa_info field clearly states that a visa is required and must be arranged before departure.
+2. Call fetch_flights and hotels_finder using the destination and departure cities exactly as given by the user, along with delay_before_flight and trip_period_to_stay.
+3. Call get_places using the destination city to gather a list of attractions.
+4. Distribute the attractions returned by get_places evenly across the days of the trip (trip_period_to_stay days total) — do not repeat the same attraction on multiple days, and do not leave any day empty if enough attractions are available.
+5. Fill in every field of the response schema. Do not leave a field empty or vague if a tool successfully returned data for it.
+6. If a tool call fails or returns no data, state that clearly and specifically in the relevant field (e.g. "No hotels found for these dates") instead of guessing or inventing values.
+"""
+)
+Query=input("\n press q in the keyboard to leave JourneyGo")
+intermediate_response=agent.invoke({
+        "messages":[
+            {
+                "role":"user"
+                ,"content":Query
+                }
+        ]
+    })
+Response=intermediate_response["structured_response"]
+formatting_template=ChatPromptTemplate.from_messages([
+    ("system", "You are a warm travel writer. Write one flowing paragraph, no bullet points, no headers."),
+    ("user", "Trip data:\n{trip_data}")
+]
+)
+chain=formatting_template|LLM|StrOutputParser()
+Final_response=chain.invoke({"trip_data": Response.model_dump_json(indent=2)})
+print(Final_response)
