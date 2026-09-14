@@ -88,4 +88,30 @@ def fetch_flights(departure_city:str,arrival_city:str,delay_before_flight:int,tr
     return f"""Best flight available regarding your scheldue is from {data["best_flights"][0]["flights"][0]["departure_airport"]["name"]} to {data["best_flights"][0]["flights"][0]["arrival_airport"]["name"]} , The dparture Time is on {data["best_flights"][0]["flights"][0]["departure_airport"]["time"]} and the Arrival is on
      {data["best_flights"][0]["flights"][0]["arrival_airport"]["time"]} The duration will be approximatively {data["best_flights"][0]["flights"][0]["duration"]} minute,The Airplane is {data["best_flights"][0]["flights"][0]["airplane"]} and the airline is {data["best_flights"][0]["flights"][0]["airline"]} , The Travel class is {data["best_flights"][0]["flights"][0]["travel_class"]} and the flight_number is {data["best_flights"][0]["flights"][0]["flight_number"]}
      """
-
+@tool("get_hotels",description="find hotles in a specificated place",return_direct=False)
+def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str:
+    API_URL="https://serpapi.com/search?engine=google_hotels"
+    day_of_the_flight_formatted = (datetime.now() + timedelta(days=delay_before_flight)).strftime("%Y-%m-%d")
+    day_of_the_departure_formatted = (datetime.now() + timedelta(days=delay_before_flight + trip_period_to_stay)).strftime("%Y-%m-%d") 
+    params={
+        "q":f"{city} hotels"
+        ,"check_in_date":day_of_the_flight_formatted
+        ,"check_out_date":day_of_the_departure_formatted
+        ,"api_key":os.getenv("GET_FLIGHTS_API_KEY")
+    }
+    response=requests.get(url=API_URL,params=params)
+    if response.status_code != 200:
+        return f"Error fetching hotels: {response.status_code} - {response.text}"
+    data=response.json()
+    properties = data.get("properties", [])
+    if not properties:
+        return f"No hotels found in {city} for the selected dates."
+    results = []
+    for hotel in properties[:3]:
+        name = hotel.get("name", "Unknown hotel")
+        rating = hotel.get("overall_rating", "N/A")
+        price = hotel.get("rate_per_night", {}).get("lowest", "N/A")
+        free_cancellation = hotel.get("free_cancellation", False)
+        cancellation_note = "includes free cancellation" if free_cancellation else "does not include free cancellation"
+        results.append(f"{name} — rated {rating}, {price}/night, {cancellation_note}")
+    return "Here are some hotel options:\n" + "\n".join(f"- {r}" for r in results)
