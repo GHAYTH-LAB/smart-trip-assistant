@@ -2,7 +2,7 @@ import requests
 from langchain.tools import tool
 from langchain.agents import create_agent
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv 
 import os
@@ -144,8 +144,8 @@ class TripItinerary(BaseModel):
     visa_info: str = Field(description="Visa requirement details: whether a visa is needed and the allowed stay duration")
 
     days: List[DayPlan] = Field(description="Day-by-day plan covering the full length of the trip, distributing attractions across days without repeats")
-LLM=ChatOllama(
-    model="llama3.1"
+LLM=ChatGroq(
+    model="openai/gpt-oss-120b"
     ,temperature=0
 )
 print("Hello Ghayth! JourneyGo is here To assist Today,I am your guide for programming Good Trips ,Just Give me where You wanna go and from where also after how many days you are willing to flight and how much are you willing to stay and I WILL PROGRAMM EVRYTHING FOR YOU!")
@@ -166,6 +166,8 @@ Rules:
 4. Distribute the attractions returned by get_places evenly across the days of the trip (trip_period_to_stay days total) — do not repeat the same attraction on multiple days, and do not leave any day empty if enough attractions are available.
 5. Fill in every field of the response schema. Do not leave a field empty or vague if a tool successfully returned data for it.
 6. If a tool call fails or returns no data, state that clearly and specifically in the relevant field (e.g. "No hotels found for these dates") instead of guessing or inventing values.
+CRITICAL: You must actually CALL the tools get_visa_requirements, fetch_flights, hotels_finder, and get_places using their function-calling mechanism. Do NOT write the tool name as a string value in any field. Only use the real data returned by each tool call to fill in flight_info, hotel_infos, and visa_info.
+
 """
 )
 Query=input("\n press q in the keyboard to leave JourneyGo")
@@ -176,7 +178,7 @@ intermediate_response=agent.invoke({
                 ,"content":Query
                 }
         ]
-    })
+    })  
 Response=intermediate_response["structured_response"]
 formatting_template=ChatPromptTemplate.from_messages([
     ("system", "You are a warm travel writer. Write one flowing paragraph, no bullet points, no headers."),
