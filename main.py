@@ -146,7 +146,6 @@ def get_visa_requirements(departure_country:str,destination_country:str)->str:
         if not objects:
             return None
         return objects[0].get("codes", {}).get("alpha_3")
-
     alpha3_departure = get_alpha3(departure_country)
     alpha3_destination = get_alpha3(destination_country)
     if not alpha3_departure or not alpha3_destination:
@@ -230,7 +229,7 @@ day_text = "; ".join(
 )
 Final_response = (
     f"The trip is from {Response.departure_city} to {Response.destination_city}. "
-    f"The flight information is: {' '.join(Response.flight_info.split()).rstrip('.')}. "
+    f"The flight info0rmation is: {' '.join(Response.flight_info.split()).rstrip('.')}. "
     f"The hotel information is: {hotel_text}. "
     f"The visa information is: {' '.join(Response.visa_info.split()).rstrip('.')}. "
     f"The itinerary is: {day_text}."
