@@ -3,13 +3,17 @@ from langchain.tools import tool
 from langchain.agents import create_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
+from langchain.agents.structured_output import ToolStrategy
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv 
 import os
+import sys
 from pydantic import BaseModel,Field
 from typing import List
 from datetime import datetime,timedelta
 load_dotenv()
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 GET_TOURIST_PLACES_API_KEY=os.getenv("GET_PLACES_API_KEY")
 @tool("attractions_finder",description="Find tourist attractions in a given city. Takes a city name and returns a list of tourist attraction names (e.g. landmarks, monuments, points of interest) located in or near that city, using geocoding to locate the city and then searching for nearby attractions",return_direct=False)
 def get_places(city:str)->List:
@@ -21,7 +25,7 @@ def get_places(city:str)->List:
     }
     response=requests.get(url=url,params=partial_params)
     data=response.json()
-    place_id_extracted=data["features"][0]["propreties"]["place_id"]
+    place_id_extracted=data["features"][0]["properties"]["place_id"]
     Link="https://api.geoapify.com/v2/places"
     params={
         "categories":"tourism.attraction"
@@ -60,8 +64,14 @@ def fetch_flights(departure_city:str,arrival_city:str,delay_before_flight:int,tr
     response=requests.get(url=URL
                           ,params=params)
     Airports_data=response.json()
-    departure_Airport_id=Airports_data["suggestions"][0]["airports"][0]["id"]
-    departure_Airport_name=Airports_data["suggestions"][0]["airports"][0]["name"]
+    departure_airport = next(
+        (airport for suggestion in Airports_data.get("suggestions", [])
+         for airport in suggestion.get("airports", [])),
+        None,
+    )
+    if not departure_airport:
+        return f"No departure airport found for {departure_city}."
+    departure_Airport_id=departure_airport["id"]
     URL="https://serpapi.com/search?engine=google_flights_autocomplete"
     params={
             "q":arrival_city
@@ -70,8 +80,14 @@ def fetch_flights(departure_city:str,arrival_city:str,delay_before_flight:int,tr
     response=requests.get(url=URL
                             ,params=params)
     Airports_data=response.json()
-    arrival_city_Airport_id=Airports_data["suggestions"][0]["airports"][0]["id"]
-    arrival_city_Airport_name=Airports_data["suggestions"][0]["airports"][0]["name"]
+    arrival_airport = next(
+        (airport for suggestion in Airports_data.get("suggestions", [])
+         for airport in suggestion.get("airports", [])),
+        None,
+    )
+    if not arrival_airport:
+        return f"No arrival airport found for {arrival_city}."
+    arrival_city_Airport_id=arrival_airport["id"]
     URL="https://serpapi.com/search?engine=google_flights"
     outbound_date_date_not_formatted=datetime.now()+timedelta(days=delay_before_flight)
     outbound_date_formatted = outbound_date_date_not_formatted.strftime("%Y-%m-%d")
@@ -119,20 +135,40 @@ def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str
     return "Here are some hotel options:\n" + "\n".join(f"- {r}" for r in results)
 @tool("visa_requirements",description="get visa requirements for the destination country",return_direct=False)
 def get_visa_requirements(departure_country:str,destination_country:str)->str:
-    URL=f"https://restcountries.com/v3.1/name/{destination_country}?fields=name,cca2"
-    response=requests.get(url=URL)
-    data=response.json()
-    destination_code=data[0]["cca2"]
-    URL=f"https://restcountries.com/v3.1/name/{departure_country}?fields=name,cca2"
-    response=requests.get(url=URL)
-    data=response.json()
-    departure_code=data[0]["cca2"]
-    URL=f"https://rough-sun-2523.fly.dev/visa/{departure_code}/{destination_code}"
-    data=requests.get(url=URL).json()
-    if data["category"]["code"]=="VF":
-        return f"Visa is not required from {departure_country} to {destination_country}"
+    country_api_key = os.getenv("GET_CORDONATES")
+    country_headers = {"Authorization": f"Bearer {country_api_key}"}
+
+    def get_alpha3(country: str) -> str | None:
+        url = f"https://api.restcountries.com/countries/v5/names.common/{country}"
+        response = requests.get(url=url, headers=country_headers)
+        data = response.json()
+        objects = data.get("data", {}).get("objects", [])
+        if not objects:
+            return None
+        return objects[0].get("codes", {}).get("alpha_3")
+
+    alpha3_departure = get_alpha3(departure_country)
+    alpha3_destination = get_alpha3(destination_country)
+    if not alpha3_departure or not alpha3_destination:
+        return f"Visa lookup failed: could not find country codes for {departure_country} and {destination_country}."
+
+    URL = "https://visa.orizn.app/api/v1/visa/check"
+    params = {
+        "passeport": alpha3_departure,
+        "destination": alpha3_destination
+    }
+    visa_api_key = os.getenv("GET_VISA_API_KEY")
+    visa_headers = {"x-api-key": visa_api_key} if visa_api_key else {}
+    response = requests.get(url=URL, params=params, headers=visa_headers)
+    data = response.json()
+
+    if response.status_code != 200 or "visa_required" not in data:
+        return f"Visa lookup unavailable: {data.get('error', {}).get('message', response.text)}"
+
+    if data["visa_required"]:
+        return f"Visa required for {data['destination']}. The traveler must obtain a visa before traveling."
     else:
-        return f"Visa is required you must appply for it and its duration is {data["dur"]}"
+        return f"Travelers holding a {data['passport']} passport can visit {data['destination']} visa-free for up to {data['visa_free_days']} days."
 class DayPlan(BaseModel):
     day_number:int=Field(description="Day of the trip, starting from 1")    
     activities:List[str]=Field(description="List of activities or attractions planned for this day")
@@ -140,19 +176,18 @@ class TripItinerary(BaseModel):
     departure_city:str=Field(description="city the traveler is parting from(departure city)")
     destination_city: str = Field(description="City the traveler is visiting")
     flight_info: str = Field(description="Summary of the best flight found: airports, times, duration, airline, aircraft, class, and flight number")
-    hotel_infos:List[str]=Field(description="Summary of the best flight found: airports, times, duration, airline, aircraft, class, and flight number")
+    hotel_infos:List[str]=Field(description="List of hotel options with name, rating, price per night, and cancellation policy")
     visa_info: str = Field(description="Visa requirement details: whether a visa is needed and the allowed stay duration")
-
     days: List[DayPlan] = Field(description="Day-by-day plan covering the full length of the trip, distributing attractions across days without repeats")
 LLM=ChatGroq(
-    model="openai/gpt-oss-120b"
+    model="qwen/qwen3.8-27b"
     ,temperature=0
 )
 print("Hello Ghayth! JourneyGo is here To assist Today,I am your guide for programming Good Trips ,Just Give me where You wanna go and from where also after how many days you are willing to flight and how much are you willing to stay and I WILL PROGRAMM EVRYTHING FOR YOU!")
 agent=create_agent(
     model=LLM
     ,tools=[get_visa_requirements,hotels_finder,fetch_flights,get_places]
-    ,response_format=TripItinerary
+    ,response_format=ToolStrategy(TripItinerary)
     ,system_prompt="""You are JourneyGo, a trip-planning assistant. Given a departure city, destination city, how many days until departure, and trip length, you must build a complete trip plan using the tools available to you.
 Tools available:
 - get_visa_requirements(departure_country, destination_country): checks whether a visa is needed between two countries and the allowed stay duration. Always call this FIRST, using the countries (not cities) that correspond to the departure_city and destination_city.
@@ -170,7 +205,15 @@ CRITICAL: You must actually CALL the tools get_visa_requirements, fetch_flights,
 
 """
 )
-Query=input("\n press q in the keyboard to leave JourneyGo")
+try:
+    Query = input("\nPress q to leave JourneyGo: ").strip()
+except EOFError:
+    print("No prompt was entered. Please run the program in an interactive terminal.")
+    raise SystemExit(0)
+
+if not Query or Query.lower() == "q":
+    raise SystemExit(0)
+
 intermediate_response=agent.invoke({
         "messages":[
             {
@@ -180,11 +223,16 @@ intermediate_response=agent.invoke({
         ]
     })  
 Response=intermediate_response["structured_response"]
-formatting_template=ChatPromptTemplate.from_messages([
-    ("system", "You are a warm travel writer. Write one flowing paragraph, no bullet points, no headers."),
-    ("user", "Trip data:\n{trip_data}")
-]
+hotel_text = "; ".join(" ".join(hotel.split()).rstrip(".") for hotel in Response.hotel_infos)
+day_text = "; ".join(
+    f"Day {day.day_number}: {', '.join(day.activities)}"
+    for day in Response.days
 )
-chain=formatting_template|LLM|StrOutputParser()
-Final_response=chain.invoke({"trip_data": Response.model_dump_json(indent=2)})
+Final_response = (
+    f"The trip is from {Response.departure_city} to {Response.destination_city}. "
+    f"The flight information is: {' '.join(Response.flight_info.split()).rstrip('.')}. "
+    f"The hotel information is: {hotel_text}. "
+    f"The visa information is: {' '.join(Response.visa_info.split()).rstrip('.')}. "
+    f"The itinerary is: {day_text}."
+)
 print(Final_response)
