@@ -137,7 +137,6 @@ def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str
 def get_visa_requirements(departure_country:str,destination_country:str)->str:
     country_api_key = os.getenv("GET_CORDONATES")
     country_headers = {"Authorization": f"Bearer {country_api_key}"}
-
     def get_alpha3(country: str) -> str | None:
         url = f"https://api.restcountries.com/countries/v5/names.common/{country}"
         response = requests.get(url=url, headers=country_headers)
