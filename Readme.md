@@ -114,10 +114,24 @@ Press `q` to exit before submitting a request.
 
 ```text
 .
-├── main.py          # CLI application, tools, API calls, and itinerary generation
-├── requirements.txt # Python dependencies
-└── Readme.md        # Project documentation
+├── main.py              # CLI application and trip-planning logic
+├── requirements.txt     # Python dependencies
+├── .env.example         # Example environment-variable template
+├── .gitignore           # Files excluded from version control
+├── Readme.md            # Project documentation
+├── .qodo/               # Local project-assistant configuration
+├── .env                 # Local API keys; never commit this file
+└── __pycache__/         # Python bytecode cache; generated automatically
 ```
+
+### Main files and folders
+
+- `main.py` contains the complete application. It defines the travel-search tools, calls the external APIs, validates the itinerary with Pydantic, and prints the final result.
+- `requirements.txt` lists the Python packages needed to run the application.
+- `.env.example` shows the environment variables that need to be configured. Copy it to `.env` and add your real API keys.
+- `.gitignore` prevents secrets, virtual-environment files, temporary files, and Python cache files from being committed.
+- `.qodo/` contains local tooling configuration and is not part of the application's runtime logic.
+- `.env`, `venv/`, and `__pycache__/` are machine-specific or generated items. They are useful locally but should not be shared as part of the source code. The `venv/` folder appears after you create a virtual environment.
 
 ## A few things to know
 
