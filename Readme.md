@@ -1,4 +1,4 @@
- # JourneyGo
+# JourneyGo
 
 JourneyGo is a small, command-line travel planner that turns a simple trip request into a practical itinerary.
 
@@ -101,14 +101,14 @@ Press `q` to exit before submitting a request.
 
 ## API services used
 
-| Service | Purpose |
-| --- | --- |
-| Groq | Runs the language model that coordinates the trip planning tools. |
-| Geoapify | Locates a city and finds nearby tourist attractions. |
-| SerpApi / Google Flights | Finds airports and round-trip flight details. |
-| SerpApi / Google Hotels | Finds hotel options for the selected dates. |
-| RestCountries | Converts country names into country codes for the visa lookup. |
-| Orizn Visa API | Checks visa requirements between the departure and destination countries. |
+| Service                  | Purpose                                                                   |
+| ------------------------ | ------------------------------------------------------------------------- |
+| Groq                     | Runs the language model that coordinates the trip planning tools.         |
+| Geoapify                 | Locates a city and finds nearby tourist attractions.                      |
+| SerpApi / Google Flights | Finds airports and round-trip flight details.                             |
+| SerpApi / Google Hotels  | Finds hotel options for the selected dates.                               |
+| RestCountries            | Converts country names into country codes for the visa lookup.            |
+| Orizn Visa API           | Checks visa requirements between the departure and destination countries. |
 
 ## Project structure
 
