@@ -181,7 +181,17 @@ LLM=ChatGroq(
     model="qwen/qwen3.8-27b"
     ,temperature=0
 )
-print("Hello Ghayth! JourneyGo is here To assist Today,I am your guide for programming Good Trips ,Just Give me where You wanna go and from where also after how many days you are willing to flight and how much are you willing to stay and I WILL PROGRAMM EVRYTHING FOR YOU!")
+try:
+    traveler_name = input("What is your name? ").strip() or "traveler"
+except EOFError:
+    print("No name was entered. Please run the program in an interactive terminal.")
+    raise SystemExit(0)
+
+print(
+    f"Hello, {traveler_name}! I'm JourneyGo, your personal travel-planning assistant. "
+    "Tell me where you are travelling from, where you want to go, how many days "
+    "you have before departure, and how long you would like to stay."
+)
 agent=create_agent(
     model=LLM
     ,tools=[get_visa_requirements,hotels_finder,fetch_flights,get_places]
