@@ -119,6 +119,7 @@ Press `q` to exit before submitting a request.
 ├── .env.example         # Example environment-variable template
 ├── .gitignore           # Files excluded from version control
 ├── Readme.md            # Project documentation
+├── LICENSE              # MIT License terms
 ├── .qodo/               # Local project-assistant configuration
 ├── .env                 # Local API keys; never commit this file
 └── __pycache__/         # Python bytecode cache; generated automatically
@@ -130,6 +131,7 @@ Press `q` to exit before submitting a request.
 - `requirements.txt` lists the Python packages needed to run the application.
 - `.env.example` shows the environment variables that need to be configured. Copy it to `.env` and add your real API keys.
 - `.gitignore` prevents secrets, virtual-environment files, temporary files, and Python cache files from being committed.
+- `LICENSE` contains the MIT License for this project.
 - `.qodo/` contains local tooling configuration and is not part of the application's runtime logic.
 - `.env`, `venv/`, and `__pycache__/` are machine-specific or generated items. They are useful locally but should not be shared as part of the source code. The `venv/` folder appears after you create a virtual environment.
 
@@ -149,4 +151,12 @@ The main application logic lives in `main.py`, so that is the best place to star
 
 ## License
 
-No license has been specified for this project yet.
+---
+
+[MIT License](LICENSE)
+
+---
+
+Issues and PRs are always welcome 💌
+
+Feel free to open an issue or submit a pull request with improvements, ideas, or feedback for JourneyGo!
