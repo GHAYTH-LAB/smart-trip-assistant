@@ -61,6 +61,34 @@ On macOS or Linux, activate the environment with:
 source .venv/bin/activate
 ```
 
+## Docker
+
+You can run JourneyGo in a container without creating a local virtual environment.
+
+### Build the Docker image
+
+From the project root, run:
+
+```powershell
+docker build -t journeygo:v2 .
+```
+
+### Run the container
+
+Make sure a `.env` file is present in the project folder with the required API keys, then run:
+
+```powershell
+docker run --rm -it --env-file .env journeygo:v2
+```
+
+This starts the CLI in interactive mode, where you can enter your name and a travel request such as:
+
+```text
+I want to travel from Paris to Tunis in 30 days and stay for 5 days.
+```
+
+> The container uses the same `main.py` entry point as the local app, so the experience is the same as running it directly on your machine.
+
 ## Environment variables
 
 Create a file named `.env` in the project folder. Add your API keys like this:
@@ -114,26 +142,30 @@ Press `q` to exit before submitting a request.
 
 ```text
 .
-├── main.py              # CLI application and trip-planning logic
+├── main.py              # Main CLI app and travel-planning logic
 ├── requirements.txt     # Python dependencies
-├── .env.example         # Example environment-variable template
-├── .gitignore           # Files excluded from version control
-├── Readme.md            # Project documentation
+├── Dockerfile           # Container build definition for running the app in Docker
+├── README.md            # Project documentation
 ├── LICENSE              # MIT License terms
-├── .qodo/               # Local project-assistant configuration
-├── .env                 # Local API keys; never commit this file
-└── __pycache__/         # Python bytecode cache; generated automatically
+├── .gitignore           # Excludes local secrets and generated files
+├── .env                 # Local environment variables for API keys (not committed)
+├── .venv/               # Local Python virtual environment (generated)
+├── __pycache__/         # Python bytecode cache (generated)
+├── .qodo/               # Local project assistant/config metadata
+└── .dockerignore        # Optional Docker exclusion file (if present in your setup)
 ```
 
 ### Main files and folders
 
-- `main.py` contains the complete application. It defines the travel-search tools, calls the external APIs, validates the itinerary with Pydantic, and prints the final result.
-- `requirements.txt` lists the Python packages needed to run the application.
-- `.env.example` shows the environment variables that need to be configured. Copy it to `.env` and add your real API keys.
-- `.gitignore` prevents secrets, virtual-environment files, temporary files, and Python cache files from being committed.
-- `LICENSE` contains the MIT License for this project.
-- `.qodo/` contains local tooling configuration and is not part of the application's runtime logic.
-- `.env`, `venv/`, and `__pycache__/` are machine-specific or generated items. They are useful locally but should not be shared as part of the source code. The `venv/` folder appears after you create a virtual environment.
+- `main.py` contains the full JourneyGo application. It defines the travel tools, calls the external APIs, validates the itinerary response, and prints the final plan.
+- `requirements.txt` lists the packages required to run the app locally or in Docker.
+- `Dockerfile` builds a container image that runs `python main.py` and makes deployment easier in Docker-based environments.
+- `README.md` documents the project, setup steps, environment variables, and running instructions.
+- `.gitignore` prevents secrets, local environment folders, and Python-generated files from being committed.
+- `.env` stores your API keys locally and should never be shared or pushed to version control.
+- `.venv/` and `__pycache__/` are generated local artifacts created during development.
+- `.qodo/` contains local tooling metadata and is not part of the runtime logic.
+- `LICENSE` contains the MIT license for the project.
 
 ## A few things to know
 
