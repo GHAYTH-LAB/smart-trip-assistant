@@ -153,33 +153,26 @@ def get_visa_requirements(departure_country:str,destination_country:str)->str:
         "uae": "ARE",
         "united arab emirates": "ARE",
     }
-
     def get_alpha3(country: str) -> str | None:
         country_name = (country or "").strip()
         if not country_name:
             return None
-
         normalized = country_name.lower().strip()
         if normalized in common_country_codes:
             return common_country_codes[normalized]
-
         url = f"https://restcountries.com/v3.1/name/{requests.utils.quote(country_name)}?fullText=true"
         try:
             response = requests.get(url=url, timeout=20)
         except requests.RequestException:
             return None
-
         if response.status_code != 200:
             return None
-
         try:
             data = response.json()
         except ValueError:
             return None
-
         if not isinstance(data, list) or not data:
             return None
-
         country_data = data[0]
         return country_data.get("cca3") or country_data.get("cca2")
 
@@ -204,31 +197,25 @@ def get_visa_requirements(departure_country:str,destination_country:str)->str:
         "destination": alpha3_destination
     }
     visa_headers = {"x-api-key": visa_api_key}
-
     try:
         response = requests.get(url=URL, params=params, headers=visa_headers, timeout=20)
     except requests.RequestException:
         return f"Visa lookup unavailable for {destination_country}: the visa service is not reachable right now."
-
     try:
         data = response.json()
     except ValueError:
         return f"Visa lookup unavailable for {destination_country}: the visa service returned an invalid response."
-
     if response.status_code == 401:
         return (
             f"Visa lookup unavailable for {destination_country}: the visa API key is invalid or expired. "
             "Please verify visa requirements independently before departure."
         )
-
     if response.status_code != 200 or not isinstance(data, dict):
         error_msg = data.get("error", {}).get("message") if isinstance(data, dict) else response.text
         return f"Visa lookup unavailable for {destination_country}: {error_msg or response.text}"
-
     if data.get("visa_required") is True:
         destination_name = data.get("destination") or destination_country
         return f"Visa required for {destination_name}. The traveler must obtain a visa before traveling."
-
     if data.get("visa_required") is False:
         passport_name = data.get("passport") or alpha3_departure
         destination_name = data.get("destination") or destination_country
@@ -237,7 +224,6 @@ def get_visa_requirements(departure_country:str,destination_country:str)->str:
             f"Travelers holding a {passport_name} passport can visit {destination_name} "
             f"without a visa for up to {visa_free_days} days."
         )
-
     return f"Visa lookup unavailable for {destination_country}: {data.get('error', {}).get('message', 'unexpected response')}"
 class DayPlan(BaseModel):
     day_number:int=Field(description="Day of the trip, starting from 1")    
