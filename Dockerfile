@@ -7,4 +7,6 @@ COPY . .
 
 RUN pip install -r requirements.txt
 
-CMD ["python","main.py"]
+EXPOSE 8501
+
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501"]
