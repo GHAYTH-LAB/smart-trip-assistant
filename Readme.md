@@ -75,7 +75,7 @@ source .venv/bin/activate
 
 ## Docker
 
-JourneyGo is Dockerized so the Streamlit app, Python runtime, and pinned dependencies run consistently across local development and deployment environments. You can run the same container locally or deploy it to a container-compatible service such as Render without creating a local virtual environment.
+You can run JourneyGo in a container without creating a local virtual environment.
 
 ### Build the Docker image
 
@@ -90,26 +90,16 @@ docker build -t journeygo:v2 .
 Make sure a `.env` file is present in the project folder with the required API keys, then run:
 
 ```powershell
-docker run --rm -p 8501:8501 --env-file .env journeygo:v2
+docker run --rm -it --env-file .env journeygo:v2
 ```
 
-Open `http://localhost:8501` in your browser. This starts the Streamlit web app, where you can enter your name and a travel request such as:
+This starts the CLI in interactive mode, where you can enter your name and a travel request such as:
 
 ```text
 I want to travel from Paris to Tunis in 30 days and stay for 5 days.
 ```
 
-The container runs `app.py` with Streamlit on port `8501`. The Streamlit interface uses the shared travel-planning logic in `main.py`.
-
-## Render deployment
-
-JourneyGo is deployed on Render as a Docker-based web service. Render builds the image from the repository's `Dockerfile`, installs the dependencies from `requirements.txt`, and starts the Streamlit app with the container command defined in the Dockerfile.
-
-The deployed app is available at:
-
-[https://journeygo.onrender.com/](https://journeygo.onrender.com/)
-
-The required API keys are configured as environment variables in Render rather than committed to the repository. Render forwards web traffic to the container's Streamlit port (`8501`), making the same Docker image available as the live JourneyGo web app.
+> The container uses the same `main.py` entry point as the local app, so the experience is the same as running it directly on your machine.
 
 ## Environment variables
 
@@ -193,7 +183,7 @@ Press `q` to exit before submitting a request.
 - `app.py` contains the Streamlit web interface and calls the shared travel-planning logic.
 - `main.py` contains the core JourneyGo logic and the original CLI interface. It defines the travel tools, calls the external APIs, validates the itinerary response, and returns or prints the final plan.
 - `requirements.txt` lists the packages required to run the app locally or in Docker.
-- `Dockerfile` builds a container image that runs the Streamlit app on port `8501` for local or Render deployment.
+- `Dockerfile` builds a container image that runs `python main.py` and makes deployment easier in Docker-based environments.
 - `README.md` documents the project, setup steps, environment variables, deployment, and running instructions.
 - `.gitignore` prevents secrets, local environment folders, and Python-generated files from being committed.
 - `.env` stores your API keys locally and should never be shared or pushed to version control.
