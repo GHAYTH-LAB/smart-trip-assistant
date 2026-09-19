@@ -135,38 +135,110 @@ def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str
     return "Here are some hotel options:\n" + "\n".join(f"- {r}" for r in results)
 @tool("visa_requirements",description="get visa requirements for the destination country",return_direct=False)
 def get_visa_requirements(departure_country:str,destination_country:str)->str:
-    country_api_key = os.getenv("GET_CORDONATES")
-    country_headers = {"Authorization": f"Bearer {country_api_key}"}
+    common_country_codes = {
+        "tunisia": "TUN",
+        "france": "FRA",
+        "usa": "USA",
+        "united states": "USA",
+        "united states of america": "USA",
+        "canada": "CAN",
+        "germany": "DEU",
+        "italy": "ITA",
+        "spain": "ESP",
+        "morocco": "MAR",
+        "algeria": "DZA",
+        "egypt": "EGY",
+        "turkey": "TUR",
+        "saudi arabia": "SAU",
+        "uae": "ARE",
+        "united arab emirates": "ARE",
+    }
+
     def get_alpha3(country: str) -> str | None:
-        url = f"https://api.restcountries.com/countries/v5/names.common/{country}"
-        response = requests.get(url=url, headers=country_headers)
-        data = response.json()
-        objects = data.get("data", {}).get("objects", [])
-        if not objects:
+        country_name = (country or "").strip()
+        if not country_name:
             return None
-        return objects[0].get("codes", {}).get("alpha_3")
+
+        normalized = country_name.lower().strip()
+        if normalized in common_country_codes:
+            return common_country_codes[normalized]
+
+        url = f"https://restcountries.com/v3.1/name/{requests.utils.quote(country_name)}?fullText=true"
+        try:
+            response = requests.get(url=url, timeout=20)
+        except requests.RequestException:
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        try:
+            data = response.json()
+        except ValueError:
+            return None
+
+        if not isinstance(data, list) or not data:
+            return None
+
+        country_data = data[0]
+        return country_data.get("cca3") or country_data.get("cca2")
+
     alpha3_departure = get_alpha3(departure_country)
     alpha3_destination = get_alpha3(destination_country)
     if not alpha3_departure or not alpha3_destination:
-        return f"Visa lookup failed: could not find country codes for {departure_country} and {destination_country}."
+        return (
+            f"Visa lookup failed: could not find country codes for {departure_country} "
+            f"and {destination_country}. Please verify visa requirements independently before departure."
+        )
+
+    visa_api_key = os.getenv("GET_VISA_API_KEY")
+    if not visa_api_key:
+        return (
+            f"Visa lookup unavailable for {destination_country}: missing GET_VISA_API_KEY. "
+            "Please verify visa requirements independently before departure."
+        )
 
     URL = "https://visa.orizn.app/api/v1/visa/check"
     params = {
         "passeport": alpha3_departure,
         "destination": alpha3_destination
     }
-    visa_api_key = os.getenv("GET_VISA_API_KEY")
-    visa_headers = {"x-api-key": visa_api_key} if visa_api_key else {}
-    response = requests.get(url=URL, params=params, headers=visa_headers)
-    data = response.json()
+    visa_headers = {"x-api-key": visa_api_key}
 
-    if response.status_code != 200 or "visa_required" not in data:
-        return f"Visa lookup unavailable: {data.get('error', {}).get('message', response.text)}"
+    try:
+        response = requests.get(url=URL, params=params, headers=visa_headers, timeout=20)
+    except requests.RequestException:
+        return f"Visa lookup unavailable for {destination_country}: the visa service is not reachable right now."
 
-    if data["visa_required"]:
-        return f"Visa required for {data['destination']}. The traveler must obtain a visa before traveling."
-    else:
-        return f"Travelers holding a {data['passport']} passport can visit {data['destination']} visa-free for up to {data['visa_free_days']} days."
+    try:
+        data = response.json()
+    except ValueError:
+        return f"Visa lookup unavailable for {destination_country}: the visa service returned an invalid response."
+
+    if response.status_code == 401:
+        return (
+            f"Visa lookup unavailable for {destination_country}: the visa API key is invalid or expired. "
+            "Please verify visa requirements independently before departure."
+        )
+
+    if response.status_code != 200 or not isinstance(data, dict):
+        error_msg = data.get("error", {}).get("message") if isinstance(data, dict) else response.text
+        return f"Visa lookup unavailable for {destination_country}: {error_msg or response.text}"
+
+    if data.get("visa_required") is True:
+        destination_name = data.get("destination") or destination_country
+        return f"Visa required for {destination_name}. The traveler must obtain a visa before traveling."
+
+    if data.get("visa_required") is False:
+        passport_name = data.get("passport") or alpha3_departure
+        destination_name = data.get("destination") or destination_country
+        visa_free_days = data.get("visa_free_days") or data.get("max_stay_days") or "the allowed stay period"
+        return (
+            f"Travelers holding a {passport_name} passport can visit {destination_name} "
+            f"without a visa for up to {visa_free_days} days."
+        )
+
+    return f"Visa lookup unavailable for {destination_country}: {data.get('error', {}).get('message', 'unexpected response')}"
 class DayPlan(BaseModel):
     day_number:int=Field(description="Day of the trip, starting from 1")    
     activities:List[str]=Field(description="List of activities or attractions planned for this day")
@@ -181,17 +253,7 @@ LLM=ChatGroq(
     model="qwen/qwen3.8-27b"
     ,temperature=0
 )
-try:
-    traveler_name = input("What is your name? ").strip() or "traveler"
-except EOFError:
-    print("No name was entered. Please run the program in an interactive terminal.")
-    raise SystemExit(0)
 
-print(
-    f"Hello, {traveler_name}! I'm JourneyGo, your personal travel-planning assistant. "
-    "Tell me where you are travelling from, where you want to go, how many days "
-    "you have before departure, and how long you would like to stay."
-)
 agent=create_agent(
     model=LLM
     ,tools=[get_visa_requirements,hotels_finder,fetch_flights,get_places]
@@ -213,34 +275,13 @@ CRITICAL: You must actually CALL the tools get_visa_requirements, fetch_flights,
 
 """
 )
-try:
-    Query = input("\nPress q to leave JourneyGo: ").strip()
-except EOFError:
-    print("No prompt was entered. Please run the program in an interactive terminal.")
-    raise SystemExit(0)
-
-if not Query or Query.lower() == "q":
-    raise SystemExit(0)
-
-intermediate_response=agent.invoke({
-        "messages":[
+def run_journeygo(query: str) -> TripItinerary:
+    response = agent.invoke({
+        "messages": [
             {
-                "role":"user"
-                ,"content":Query
-                }
+                "role": "user",
+                "content": query
+            }
         ]
-    })  
-Response=intermediate_response["structured_response"]
-hotel_text = "; ".join(" ".join(hotel.split()).rstrip(".") for hotel in Response.hotel_infos)
-day_text = "; ".join(
-    f"Day {day.day_number}: {', '.join(day.activities)}"
-    for day in Response.days
-)
-Final_response = (
-    f"The trip is from {Response.departure_city} to {Response.destination_city}. "
-    f"The flight info0rmation is: {' '.join(Response.flight_info.split()).rstrip('.')}. "
-    f"The hotel information is: {hotel_text}. "
-    f"The visa information is: {' '.join(Response.visa_info.split()).rstrip('.')}. "
-    f"The itinerary is: {day_text}."
-)
-print(Final_response)
+    })
+    return response["structured_response"]
