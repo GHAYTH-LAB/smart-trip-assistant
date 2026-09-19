@@ -1,6 +1,8 @@
 # JourneyGo
 
-JourneyGo is a small, command-line travel planner that turns a simple trip request into a practical itinerary.
+JourneyGo is an AI-powered travel planner that turns a simple trip request into a practical itinerary. It is available as a Streamlit web app and as a command-line application.
+
+**Live app:** [journeygo.onrender.com](https://journeygo.onrender.com/)
 
 You tell it where you are travelling from, where you want to go, how many days you have before departure, and how long you want to stay. JourneyGo then gathers the pieces of the trip for you:
 
@@ -14,7 +16,7 @@ The project uses a Groq-hosted language model to coordinate the planning process
 
 ## How it works
 
-JourneyGo is a Python terminal application. When you run it, the program waits for one request such as:
+The Streamlit app welcomes you by name and then waits for a trip request such as:
 
 ```text
 I want to travel from Paris to Tunis in 30 days and stay for 5 days.
@@ -33,6 +35,14 @@ The assistant uses the request to:
 - Python 3.10 or newer is recommended.
 - An internet connection.
 - API keys for Groq, Geoapify, SerpApi, and the visa services used by the project.
+
+## Use the deployed app
+
+Open the live JourneyGo app in your browser:
+
+[https://journeygo.onrender.com/](https://journeygo.onrender.com/)
+
+Enter your name, describe your trip in the chat box, and wait while JourneyGo prepares your flights, hotels, visa information, attractions, and itinerary.
 
 ## Installation
 
@@ -111,9 +121,19 @@ Do not commit `.env` or share its contents. A simple `.gitignore` entry is recom
 __pycache__/
 ```
 
-## Run the application
+## Run the Streamlit application locally
 
-Start JourneyGo with:
+Start the web app with:
+
+```powershell
+streamlit run app.py
+```
+
+Streamlit will display a local URL in the terminal. Open it in your browser and enter your name and travel request.
+
+## Run the command-line application
+
+The original terminal interface is still available through `main.py`:
 
 ```powershell
 python main.py
@@ -143,6 +163,7 @@ Press `q` to exit before submitting a request.
 ```text
 .
 ├── main.py              # Main CLI app and travel-planning logic
+├── app.py               # Streamlit web app entry point
 ├── requirements.txt     # Python dependencies
 ├── Dockerfile           # Container build definition for running the app in Docker
 ├── README.md            # Project documentation
@@ -157,10 +178,11 @@ Press `q` to exit before submitting a request.
 
 ### Main files and folders
 
-- `main.py` contains the full JourneyGo application. It defines the travel tools, calls the external APIs, validates the itinerary response, and prints the final plan.
+- `app.py` contains the Streamlit web interface and calls the shared travel-planning logic.
+- `main.py` contains the core JourneyGo logic and the original CLI interface. It defines the travel tools, calls the external APIs, validates the itinerary response, and returns or prints the final plan.
 - `requirements.txt` lists the packages required to run the app locally or in Docker.
 - `Dockerfile` builds a container image that runs `python main.py` and makes deployment easier in Docker-based environments.
-- `README.md` documents the project, setup steps, environment variables, and running instructions.
+- `README.md` documents the project, setup steps, environment variables, deployment, and running instructions.
 - `.gitignore` prevents secrets, local environment folders, and Python-generated files from being committed.
 - `.env` stores your API keys locally and should never be shared or pushed to version control.
 - `.venv/` and `__pycache__/` are generated local artifacts created during development.
@@ -179,7 +201,7 @@ Press `q` to exit before submitting a request.
 
 The itinerary returned by the language model is validated with Pydantic models. The model is instructed to call each travel tool and to avoid inventing information when a service does not return data.
 
-The main application logic lives in `main.py`, so that is the best place to start when adding features such as multiple requests per session, stronger error handling, budget filters, or a graphical interface.
+The main application logic lives in `main.py`, while `app.py` provides the Streamlit interface. These are the best places to start when adding features such as multiple requests per session, stronger error handling, budget filters, or additional web UI features.
 
 ## License
 
