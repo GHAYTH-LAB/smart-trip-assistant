@@ -3,11 +3,11 @@
 	<h1>JourneyGo</h1>
 	<p>AI-powered trip planning for flights, stays, visas, and unforgettable days.</p>
 
-	<a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white" alt="Python 3.13"></a>
-	<a href="https://streamlit.io/"><img src="https://img.shields.io/badge/Streamlit-1.60.0-FF4B4B?logo=streamlit&logoColor=white" alt="Streamlit 1.60.0"></a>
-	<a href="https://www.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.17-1C3C3C?logo=langchain&logoColor=white" alt="LangChain 1.3.17"></a>
-	<a href="https://groq.com/"><img src="https://img.shields.io/badge/Groq-1.1.3-F55036?logo=groq&logoColor=white" alt="Groq"></a>
-	<a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Python%203.13-2496ED?logo=docker&logoColor=white" alt="Docker"></a>
+	<a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.13-3776AB?logo=python&amp;logoColor=white" alt="Python 3.13"></a>
+	<a href="https://streamlit.io/"><img src="https://img.shields.io/badge/Streamlit-1.60.0-FF4B4B?logo=streamlit&amp;logoColor=white" alt="Streamlit 1.60.0"></a>
+	<a href="https://www.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.3.17-1C3C3C?logo=langchain&amp;logoColor=white" alt="LangChain 1.3.17"></a>
+	<a href="https://groq.com/"><img src="https://img.shields.io/badge/Groq-1.1.3-F55036?logo=groq&amp;logoColor=white" alt="Groq"></a>
+	<a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Python%203.13-2496ED?logo=docker&amp;logoColor=white" alt="Docker"></a>
 </div>
 
 JourneyGo is an AI travel agent that helps you plan a complete trip from a simple chat request. Powered by LangChain and Groq, the Streamlit app finds destinations, flights, hotels, visa information, and local activities, then builds a practical day-by-day itinerary.
