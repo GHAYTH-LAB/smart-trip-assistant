@@ -133,98 +133,49 @@ def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str
         cancellation_note = "includes free cancellation" if free_cancellation else "does not include free cancellation"
         results.append(f"{name} — rated {rating}, {price}/night, {cancellation_note}")
     return "Here are some hotel options:\n" + "\n".join(f"- {r}" for r in results)
-@tool("visa_requirements",description="get visa requirements for the destination country",return_direct=False)
-def get_visa_requirements(departure_country:str,destination_country:str)->str:
-    common_country_codes = {
-        "tunisia": "TUN",
-        "france": "FRA",
-        "usa": "USA",
-        "united states": "USA",
-        "united states of america": "USA",
-        "canada": "CAN",
-        "germany": "DEU",
-        "italy": "ITA",
-        "spain": "ESP",
-        "morocco": "MAR",
-        "algeria": "DZA",
-        "egypt": "EGY",
-        "turkey": "TUR",
-        "saudi arabia": "SAU",
-        "uae": "ARE",
-        "united arab emirates": "ARE",
-    }
-    def get_alpha3(country: str) -> str | None:
-        country_name = (country or "").strip()
-        if not country_name:
-            return None
-        normalized = country_name.lower().strip()
-        if normalized in common_country_codes:
-            return common_country_codes[normalized]
-        url = f"https://restcountries.com/v3.1/name/{requests.utils.quote(country_name)}?fullText=true"
+def to_iso3(country: str):
+    """Convert a country name (or 3-letter code) to a 3-letter ISO code."""
+    country = country.strip()
+    if len(country) == 3 and country.isalpha():
+        return country.upper()
+    for full_text in ("true", "false"):
         try:
-            response = requests.get(url=url, timeout=20)
-        except requests.RequestException:
-            return None
-        if response.status_code != 200:
-            return None
-        try:
-            data = response.json()
-        except ValueError:
-            return None
-        if not isinstance(data, list) or not data:
-            return None
-        country_data = data[0]
-        return country_data.get("cca3") or country_data.get("cca2")
-
-    alpha3_departure = get_alpha3(departure_country)
-    alpha3_destination = get_alpha3(destination_country)
-    if not alpha3_departure or not alpha3_destination:
-        return (
-            f"Visa lookup failed: could not find country codes for {departure_country} "
-            f"and {destination_country}. Please verify visa requirements independently before departure."
-        )
-
-    visa_api_key = os.getenv("GET_VISA_API_KEY")
-    if not visa_api_key:
-        return (
-            f"Visa lookup unavailable for {destination_country}: missing GET_VISA_API_KEY. "
-            "Please verify visa requirements independently before departure."
-        )
-
-    URL = "https://visa.orizn.app/api/v1/visa/check"
-    params = {
-        "passeport": alpha3_departure,
-        "destination": alpha3_destination
-    }
-    visa_headers = {"x-api-key": visa_api_key}
+            r = requests.get(
+                f"https://restcountries.com/v3.1/name/{requests.utils.quote(country)}",
+                params={"fullText": full_text, "fields": "cca3"},
+                timeout=20,
+            )
+            if r.status_code == 200:
+                return r.json()[0]["cca3"]
+        except Exception:
+            pass
+    return None
+@tool("visa_requirements",description="Get visa requirements between two countries. Inputs can be country names (e.g. Tunisia, France)",return_direct=False)
+def get_visa_requirements(departure_country: str, destination_country: str) -> str:
+    passport = to_iso3(departure_country)
+    destination = to_iso3(destination_country)
+    if not passport or not destination:
+        return f"Could not find country codes for {departure_country} and {destination_country}. Please verify visa requirements with the embassy."
     try:
-        response = requests.get(url=URL, params=params, headers=visa_headers, timeout=20)
-    except requests.RequestException:
-        return f"Visa lookup unavailable for {destination_country}: the visa service is not reachable right now."
-    try:
-        data = response.json()
-    except ValueError:
-        return f"Visa lookup unavailable for {destination_country}: the visa service returned an invalid response."
-    if response.status_code == 401:
-        return (
-            f"Visa lookup unavailable for {destination_country}: the visa API key is invalid or expired. "
-            "Please verify visa requirements independently before departure."
-        )
-    if response.status_code != 200 or not isinstance(data, dict):
-        error_msg = data.get("error", {}).get("message") if isinstance(data, dict) else response.text
-        return f"Visa lookup unavailable for {destination_country}: {error_msg or response.text}"
-    if data.get("visa_required") is True:
-        destination_name = data.get("destination") or destination_country
-        return f"Visa required for {destination_name}. The traveler must obtain a visa before traveling."
-    if data.get("visa_required") is False:
-        passport_name = data.get("passport") or alpha3_departure
-        destination_name = data.get("destination") or destination_country
-        visa_free_days = data.get("visa_free_days") or data.get("max_stay_days") or "the allowed stay period"
-        return (
-            f"Travelers holding a {passport_name} passport can visit {destination_name} "
-            f"without a visa for up to {visa_free_days} days."
-        )
-    return f"Visa lookup unavailable for {destination_country}: {data.get('error', {}).get('message', 'unexpected response')}"
+        r = requests.get("https://api.canienter.com/free/check",params={"passport": passport, "destination": destination},timeout=20)
+        data = r.json()
+    except Exception:
+        return "Visa lookup unavailable. Please verify visa requirements with the embassy."
+    if r.status_code != 200:
+        return "Visa lookup unavailable. Please verify visa requirements with the embassy."
+    label = data.get("requirement_label") or data.get("requirement") or "Unknown"
+    result = f"Visa requirement: {label}."
+    stay = data.get("allowed_stay_days")
+    if stay:
+        result += f" Allowed stay: {stay} days."
+    apply_info = data.get("apply") or {}
+    if apply_info.get("url"):
+        result += f" Official website: {apply_info['url']}."
+    rules = data.get("entry_rules") or {}
+    validity = rules.get("passport_validity") or {}
+    if validity.get("months"):
+        result += f" Passport must be valid {validity['months']} months beyond departure."
+    return result
 class DayPlan(BaseModel):
     day_number:int=Field(description="Day of the trip, starting from 1")    
     activities:List[str]=Field(description="List of activities or attractions planned for this day")
