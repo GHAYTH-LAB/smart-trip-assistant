@@ -133,23 +133,18 @@ def hotels_finder(city:str,delay_before_flight:int,trip_period_to_stay:int)->str
         cancellation_note = "includes free cancellation" if free_cancellation else "does not include free cancellation"
         results.append(f"{name} — rated {rating}, {price}/night, {cancellation_note}")
     return "Here are some hotel options:\n" + "\n".join(f"- {r}" for r in results)
-def to_iso3(country: str):
-    """Convert a country name (or 3-letter code) to a 3-letter ISO code."""
-    country = country.strip()
-    if len(country) == 3 and country.isalpha():
-        return country.upper()
-    for full_text in ("true", "false"):
-        try:
-            r = requests.get(
-                f"https://restcountries.com/v3.1/name/{requests.utils.quote(country)}",
-                params={"fullText": full_text, "fields": "cca3"},
-                timeout=20,
-            )
-            if r.status_code == 200:
-                return r.json()[0]["cca3"]
-        except Exception:
-            pass
-    return None
+def to_iso3(country: str)->str | None:
+    URL=f"https://api.restcountries.com/countries/v5/names.common/{country}"
+    key=os.getenv("GET_CORDONATES")
+    headers={
+        "Authorization": f"Bearer {key}"
+    }
+    response=requests.get(url=URL,headers=headers)
+    if response.status_code!=200:
+        return None
+    else:
+        data=response.json()
+        return data["data"]["objects"][0]["codes"]["alpha_3"]
 @tool("visa_requirements",description="Get visa requirements between two countries. Inputs can be country names (e.g. Tunisia, France)",return_direct=False)
 def get_visa_requirements(departure_country: str, destination_country: str) -> str:
     passport = to_iso3(departure_country)
