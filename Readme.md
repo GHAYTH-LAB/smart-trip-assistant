@@ -110,7 +110,6 @@ GROQ_API_KEY=your_groq_api_key
 GET_PLACES_API_KEY=your_geoapify_api_key
 GET_FLIGHTS_API_KEY=your_serpapi_api_key
 GET_CORDONATES=your_restcountries_api_key
-GET_VISA_API_KEY=your_visa_api_key
 ```
 
 The application currently expects the variable `GET_CORDONATES` exactly as written above. It is used for the country lookup step.
@@ -157,8 +156,29 @@ Press `q` to exit before submitting a request.
 | Geoapify                 | Locates a city and finds nearby tourist attractions.                      |
 | SerpApi / Google Flights | Finds airports and round-trip flight details.                             |
 | SerpApi / Google Hotels  | Finds hotel options for the selected dates.                               |
-| RestCountries            | Converts country names into country codes for the visa lookup.            |
-| Orizn Visa API           | Checks visa requirements between the departure and destination countries. |
+| RestCountries            | Converts country names into ISO alpha-3 country codes for the visa lookup. |
+| Can I Enter API          | Checks visa requirements between the departure and destination countries. |
+
+### Visa requirements API
+
+The visa tool accepts departure and destination country names, converts them to
+ISO alpha-3 codes through RestCountries, and sends a request to:
+
+```text
+GET https://api.canienter.com/free/check
+```
+
+The request includes these query parameters:
+
+```text
+passport=<departure-country-alpha-3>
+destination=<destination-country-alpha-3>
+```
+
+The response is used to report the visa requirement label, allowed stay in days,
+the official application URL when available, and passport-validity requirements.
+If either country code cannot be found or the visa service is unavailable, the
+assistant tells the user to verify the requirements with the relevant embassy.
 
 ## Project structure
 
