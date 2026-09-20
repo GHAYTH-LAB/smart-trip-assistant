@@ -1,5 +1,11 @@
 # JourneyGo
 
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.60.0-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![LangChain](https://img.shields.io/badge/LangChain-1.3.17-1C3C3C?logo=langchain&logoColor=white)](https://www.langchain.com/)
+[![Groq](https://img.shields.io/badge/Groq-1.1.3-F55036?logo=groq&logoColor=white)](https://groq.com/)
+[![Docker](https://img.shields.io/badge/Docker-Python%203.13-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
 JourneyGo is an AI travel agent that helps you plan a complete trip from a simple chat request. Powered by LangChain and Groq, the Streamlit app finds destinations, flights, hotels, visa information, and local activities, then builds a practical day-by-day itinerary.
 
 The application is fully Dockerized for consistent and portable deployment, and is available online through Render.
